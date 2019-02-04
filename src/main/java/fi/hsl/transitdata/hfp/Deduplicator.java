@@ -20,10 +20,12 @@ public class Deduplicator implements IMessageHandler {
 
     private final Cache<HashCode, Long> hashCache;
     private final HashFunction hashFunction = Hashing.murmur3_128();
+    private final Analytics analytics;
 
-    public Deduplicator(PulsarApplicationContext context) {
+    public Deduplicator(PulsarApplicationContext context, Analytics analytics) {
         consumer = context.getConsumer();
         producer = context.getProducer();
+        this.analytics = analytics;
 
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
         hashCache = CacheBuilder.newBuilder()
@@ -38,12 +40,14 @@ public class Deduplicator implements IMessageHandler {
             Long cacheHit = hashCache.getIfPresent(hash);
             if (cacheHit == null) {
                 // We haven't yet received this so save to cache and send the message.
-                // Timestamp is just for debugging, no other value
+                // Timestamp is just for debugging
                 hashCache.put(hash, System.currentTimeMillis());
                 sendPulsarMessage(received);
+                analytics.reportMiss();
             }
             else {
                 long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
+                analytics.reportHit(elapsedSinceHit);
             }
             ack(received.getMessageId());
         }
