@@ -17,13 +17,18 @@ public class Analytics {
     private long misses;
 
     private final double ALERT_THRESHOLD;
+    private final boolean ALERT_ON_THRESHOLD_ENABLED;
+    private final boolean ALERT_ON_DUPLICATE_ENABLED;
     private ScheduledExecutorService scheduler;
 
     private long sum = 0;
 
     public Analytics(Config config) {
-        ALERT_THRESHOLD = config.getDouble("application.alertThreshold");
-        Duration pollInterval = config.getDuration("application.alertPollInterval");
+        ALERT_THRESHOLD = config.getDouble("application.alert.duplicateRatioThreshold");
+        ALERT_ON_THRESHOLD_ENABLED = config.getBoolean("application.alert.alertOnThreshold");
+        ALERT_ON_DUPLICATE_ENABLED = config.getBoolean("application.alert.alertOnDuplicate"); //This is more for debugging
+
+        Duration pollInterval = config.getDuration("application.alert.pollInterval");
         startPoller(pollInterval);
     }
 
@@ -41,7 +46,7 @@ public class Analytics {
 
     private synchronized void calcStats() {
         double percentageOfNotGettingBoth = Math.abs((double)(misses - hits) / (double)(misses));
-        if (percentageOfNotGettingBoth >= ALERT_THRESHOLD) {
+        if (ALERT_ON_THRESHOLD_ENABLED && percentageOfNotGettingBoth >= ALERT_THRESHOLD) {
             //TODO think about this
             log.error("Alert, not getting both feeds!");
         }
@@ -55,6 +60,9 @@ public class Analytics {
     public synchronized void reportHit(long elapsedBetweenHits) {
         hits++;
         sum += elapsedBetweenHits;
+        if (ALERT_ON_DUPLICATE_ENABLED) {
+            log.error("Alert, received a duplicate with {} ms in between!", elapsedBetweenHits);
+        }
     }
 
     public synchronized void reportMiss() {
