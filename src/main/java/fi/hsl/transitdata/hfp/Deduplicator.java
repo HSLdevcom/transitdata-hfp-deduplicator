@@ -19,7 +19,8 @@ public class Deduplicator implements IMessageHandler {
     private Producer<byte[]> producer;
 
     private final Cache<HashCode, Long> hashCache;
-    private final HashFunction hashFunction = Hashing.murmur3_128();
+    final int SEED = 42; //Let's use a static seed in case we want to store hashes in a more persistent storage at some point (f.ex Redis)
+    private final HashFunction hashFunction = Hashing.murmur3_128(SEED);
     private final Analytics analytics;
 
     public Deduplicator(PulsarApplicationContext context, Analytics analytics) {
