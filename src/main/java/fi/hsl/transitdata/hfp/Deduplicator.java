@@ -40,19 +40,20 @@ public class Deduplicator implements IMessageHandler {
             Long cacheHit = hashCache.getIfPresent(hash);
             if (cacheHit == null) {
                 // We haven't yet received this so save to cache and send the message.
-                // Timestamp is just for debugging
+                // Timestamp is for analytics & debugging purposes
                 hashCache.put(hash, System.currentTimeMillis());
                 sendPulsarMessage(received);
-                analytics.reportMiss();
+                analytics.reportPrime();
             }
             else {
                 long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
-                analytics.reportHit(elapsedSinceHit);
+                analytics.reportDuplicate(elapsedSinceHit);
             }
             ack(received.getMessageId());
         }
         catch (Exception e) {
-            log.error("Exception while handling message", e);
+            log.error("Exception while handling message, aborting", e);
+            throw e;
         }
     }
 
@@ -66,9 +67,8 @@ public class Deduplicator implements IMessageHandler {
     }
 
     private void sendPulsarMessage(Message toSend) {
-
         producer.newMessage()
-                //.key(dvjId) //TODO think about this
+                .key(toSend.getKey())
                 .eventTime(toSend.getEventTime())
                 .properties(toSend.getProperties())
                 .value(toSend.getData())

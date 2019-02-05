@@ -13,8 +13,8 @@ public class Analytics {
 
     private static final Logger log = LoggerFactory.getLogger(Analytics.class);
 
-    private long hits;
-    private long misses;
+    private long duplicates;
+    private long primes;
 
     private final double ALERT_THRESHOLD;
     private final boolean ALERT_ON_THRESHOLD_ENABLED;
@@ -26,7 +26,7 @@ public class Analytics {
     public Analytics(Config config) {
         ALERT_THRESHOLD = config.getDouble("application.alert.duplicateRatioThreshold");
         ALERT_ON_THRESHOLD_ENABLED = config.getBoolean("application.alert.alertOnThreshold");
-        ALERT_ON_DUPLICATE_ENABLED = config.getBoolean("application.alert.alertOnDuplicate"); //This is more for debugging
+        ALERT_ON_DUPLICATE_ENABLED = config.getBoolean("application.alert.alertOnDuplicate");
 
         Duration pollInterval = config.getDuration("application.alert.pollInterval");
         startPoller(pollInterval);
@@ -45,28 +45,36 @@ public class Analytics {
     }
 
     private synchronized void calcStats() {
-        double percentageOfNotGettingBoth = Math.abs((double)(misses - hits) / (double)(misses));
-        if (ALERT_ON_THRESHOLD_ENABLED && percentageOfNotGettingBoth >= ALERT_THRESHOLD) {
-            //TODO think about this
-            log.error("Alert, not getting both feeds!");
+        double percentageOfDuplicates = (double)(duplicates) / (double)(primes);
+        if (percentageOfDuplicates > 1.0) {
+            // We've received more duplicates than actual messages, something's wrong?
+            // Either the feeds have more duplicates we've assumed or our hashing algorithm is not good enough
+            log.error("Alert, we've received more duplicates than primary messages. primary: {}, duplicate: {}. percentage: {}%",
+                    primes, duplicates, percentageOfDuplicates);
         }
-        double averageDelay = (double)sum / (double)hits;
-        log.info("Percentage of not getting both events is {} % with average delay of {} ms", percentageOfNotGettingBoth, averageDelay);
-        hits = 0;
-        misses = 0;
+        else if (ALERT_ON_THRESHOLD_ENABLED && percentageOfDuplicates < ALERT_THRESHOLD) {
+            //We want to monitor that both feeds are up. In theory these two numbers should be nearly identical in the long term
+            log.error("Alert, we haven't received enough duplicates, another feed down?! primary: {}, duplicate: {}. percentage: {}%",
+                    primes, duplicates, percentageOfDuplicates);
+        }
+
+        double averageDelay = (double)sum / (double) duplicates;
+        log.info("Percentage of not getting both events is {} % with average delay of {} ms", percentageOfDuplicates, averageDelay);
+        duplicates = 0;
+        primes = 0;
         sum = 0;
     }
 
-    public synchronized void reportHit(long elapsedBetweenHits) {
-        hits++;
+    public synchronized void reportDuplicate(long elapsedBetweenHits) {
+        duplicates++;
         sum += elapsedBetweenHits;
         if (ALERT_ON_DUPLICATE_ENABLED) {
             log.error("Alert, received a duplicate with {} ms in between!", elapsedBetweenHits);
         }
     }
 
-    public synchronized void reportMiss() {
-        misses++;
+    public synchronized void reportPrime() {
+        primes++;
     }
 
     public void close() {
