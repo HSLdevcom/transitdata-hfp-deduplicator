@@ -5,6 +5,7 @@ import fi.hsl.common.pulsar.ITBaseTestSuite;
 import fi.hsl.common.pulsar.PulsarApplication;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -23,20 +24,31 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
             @Override
             public void testImpl(TestContext context) throws Exception {
                 long now = System.currentTimeMillis();
-                sendPulsarMessage(context.source, "key", now, "testme".getBytes(), null, null);
+                sendStringMessage(context, "key", "testme", now);
+                sendStringMessage(context, "key", "testme", now);
+                sendStringMessage(context, "key", "testme2", now);
                 logger.info("Message sent, reading it back");
 
                 Message<byte[]> received = readOutputMessage(context);
                 assertNotNull(received);
+                Message<byte[]> received2 = readOutputMessage(context);
+                assertNotNull(received2);
 
                 //validatePulsarProperties(received, "key", now, null);
                 String readData = new String(received.getData());
                 assertEquals("testme", readData);
+                String readData2 = new String(received2.getData());
+                assertEquals("testme2", readData2);
                 logger.info("Message read back, all good");
 
-                validateAcks(1, context);
+                validateAcks(3, context);
             }
         };
         testPulsarMessageHandler(dedup, app, logic, testId);
+    }
+
+    private void sendStringMessage(TestContext context, String key, String payload, long now) throws PulsarClientException {
+        sendPulsarMessage(context.source, key, now, payload.getBytes(), null, null);
+
     }
 }
