@@ -44,7 +44,7 @@ public class Analytics {
                 TimeUnit.SECONDS);
     }
 
-    private synchronized void calcStats() {
+    protected synchronized void calcStats() {
         double ratioOfDuplicates = (double)(duplicates) / (double)(primes);
         String percentageOfDuplicates = String.format("%.2f", ratioOfDuplicates * 100);
         if (ratioOfDuplicates > 1.0) {
