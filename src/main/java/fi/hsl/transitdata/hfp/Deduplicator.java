@@ -26,12 +26,12 @@ public class Deduplicator implements IMessageHandler {
     private final Cache<HashCode, Long> hashCache;
     final int SEED = 42; //Let's use a static seed in case we want to store hashes in a more persistent storage at some point (f.ex Redis)
     private final HashFunction hashFunction = Hashing.murmur3_128(SEED);
-    private final Analytics analytics;
+    private final Optional<Analytics> analytics;
 
     public Deduplicator(PulsarApplicationContext context, Analytics analytics) {
         consumer = context.getConsumer();
         producer = context.getProducer();
-        this.analytics = analytics;
+        this.analytics = Optional.ofNullable(analytics);
 
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
         hashCache = CacheBuilder.newBuilder()
@@ -50,16 +50,16 @@ public class Deduplicator implements IMessageHandler {
                 // Timestamp is for analytics & debugging purposes
                 hashCache.put(hash, System.currentTimeMillis());
                 sendPulsarMessage(received);
-                analytics.reportPrime();
+                analytics.ifPresent(a -> a.reportPrime());
             }
             else {
                 long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
-                analytics.reportDuplicate(elapsedSinceHit);
+                analytics.ifPresent(a -> a.reportDuplicate(elapsedSinceHit));
             }
             ack(received.getMessageId());
         }
         catch (Exception e) {
-            analytics.calcStats();
+            analytics.ifPresent(a -> a.calcStats());
             log.error("Exception while handling message, aborting", e);
             throw e;
         }
