@@ -6,7 +6,10 @@ import fi.hsl.common.pulsar.PulsarApplication;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -47,8 +50,49 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         testPulsarMessageHandler(dedup, app, logic, testId);
     }
 
-    private void sendStringMessage(TestContext context, String key, String payload, long now) throws PulsarClientException {
-        sendPulsarMessage(context.source, key, now, payload.getBytes(), null, null);
+    public static class BufferedTestLogic extends TestLogic {
+
+        protected final ArrayList<TypedMessageBuilder<byte[]>> input;
+        protected final ArrayList<TypedMessageBuilder<byte[]>> expectedOutput;
+
+        public BufferedTestLogic(ArrayList<TypedMessageBuilder<byte[]>> in,
+                                      ArrayList<TypedMessageBuilder<byte[]>> out) {
+            input = in;
+            expectedOutput = out;
+        }
+
+        @Override
+        public void testImpl(TestContext context) throws Exception {
+            //For simplicity let's just send all messages first and then read them back.
+            logger.info("Sending {} messages", input.size());
+            long now = System.currentTimeMillis();
+            for(TypedMessageBuilder<byte[]> msg : input) {
+                msg.send();
+            }
+            logger.info("Messages sent in {} ms, reading them back", (System.currentTimeMillis() - now));
+
+            final long expectedCount = expectedOutput.size();
+            ArrayList<Message<byte[]>> buffer = new ArrayList<>();
+            now = System.currentTimeMillis();
+            while (buffer.size() < expectedCount) {
+                Message<byte[]> read = readOutputMessage(context);
+                assertNotNull("Was expecting more messages but got null!", read);
+                buffer.add(read);
+            }
+            logger.info("{} messages read back in {} ms", buffer.size(), (System.currentTimeMillis() - now));
+
+            assertEquals(expectedCount, buffer.size());
+            //All input messages should have been acked.
+            validateAcks(input.size(), context);
+
+            validateOutput(buffer);
+        }
+
+        protected void validateOutput(ArrayList<Message<byte[]>> received) {
+            //Override this for your own custom check
+
+        }
+
 
     }
 }
