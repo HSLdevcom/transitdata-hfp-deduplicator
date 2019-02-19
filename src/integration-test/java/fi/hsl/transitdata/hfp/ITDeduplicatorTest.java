@@ -169,7 +169,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
 
             for(PulsarMessageData inputData : input) {
                 TypedMessageBuilder<byte[]> msg = PulsarMessageData.toPulsarMessage(context.source, inputData);
-                msg.send();
+                msg.sendAsync();
             }
             logger.info("Messages sent in {} ms, reading them back", (System.currentTimeMillis() - now));
 
