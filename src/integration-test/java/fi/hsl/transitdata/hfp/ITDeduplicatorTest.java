@@ -1,15 +1,12 @@
 package fi.hsl.transitdata.hfp;
 
 import com.google.protobuf.ByteString;
-import com.google.transit.realtime.GtfsRealtime;
-import fi.hsl.common.hfp.proto.Hfp;
 import fi.hsl.common.mqtt.proto.Mqtt;
 import fi.hsl.common.pulsar.ITBaseTestSuite;
 import fi.hsl.common.pulsar.PulsarApplication;
 import fi.hsl.common.pulsar.PulsarMessageData;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.junit.Test;
 
@@ -21,7 +18,6 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class ITDeduplicatorTest extends ITBaseTestSuite {
     @Test
@@ -53,59 +49,13 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
             }
         }
 
-        BufferedTestLogic logic = new BufferedTestLogic(input, output);
+        MultiMessageTestLogic logic = new MultiMessageTestLogic(input, output);
         testPulsarMessageHandler(dedup, app, logic, testId);
     }
 
     private Deduplicator newDeduplicator(PulsarApplication app) {
         //TODO add all required compontents to constructor
         return new Deduplicator(app.getContext(), null);
-    }
-
-    @Test
-    public void testDuplicateTimestamps() throws Exception {
-        //Different timestamps should not matter, only the data.
-        final String testId = "-test-hfp-duplicates";
-        PulsarApplication app = createPulsarApp("integration-test-dedup.conf", testId);
-
-        Deduplicator dedup = newDeduplicator(app);
-
-        ArrayList<PulsarMessageData> input = new ArrayList<>();
-        ArrayList<PulsarMessageData> output = new ArrayList<>();
-
-
-
-        BufferedTestLogic logic = new BufferedTestLogic(input, output);
-        testPulsarMessageHandler(dedup, app, logic, testId);
-    }
-
-    static class TopicAndPayload {
-        public TopicAndPayload(String t, String p) {
-            topic = t;
-            payload = p;
-        }
-        public String topic;
-        public String payload;
-        /*
-        @Override
-        public boolean equals(Object o) {
-            if (o == this)
-                return true;
-            TopicAndPayload other = (TopicAndPayload)o;
-            //Rely we're never null here, or if we are it's a bug and deserves to be thrown.
-            return topic.equals(other.topic) && payload.equals(other.payload);
-        }
-
-        @Override
-        public int hashCode() {
-            //Not relevant
-            return 1;
-        }*/
-
-        @Override
-        public String toString() {
-            return topic + " " + payload;
-        }
     }
 
     @Test
@@ -131,7 +81,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
                 counter.put(key, 1);
                 uniquePayloads.add(raw);
             } else {
-                logger.info("Duplicate: " + key);
+                logger.debug("Duplicate: " + key);
                 counter.put(key, prevCount + 1);
             }
         }
@@ -139,7 +89,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         final String testId = "-test-raw-mqtt-duplicates";
         PulsarApplication app = createPulsarApp("integration-test-dedup.conf", testId);
 
-        Deduplicator dedup = newDeduplicator(app);
+        final Deduplicator dedup = newDeduplicator(app);
 
         final ArrayList<PulsarMessageData> input = sourcePayloads.stream().map(raw -> {
             byte[] data = raw.toByteArray();
@@ -152,7 +102,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         }).collect(Collectors.toCollection(ArrayList::new));
 
         logger.info("Sending {} hfp messages and expecting {} back", input.size(), output.size());
-        BufferedTestLogic logic = new BufferedTestLogic(input, output);
+        MultiMessageTestLogic logic = new MultiMessageTestLogic(input, output);
         testPulsarMessageHandler(dedup, app, logic, testId);
     }
 
@@ -179,7 +129,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         return lines;
     }
 
-    public static TopicAndPayload parseTopicAndPayload(String line) {
+    public static Mqtt.RawMessage parseMqttRawMessage(String line) {
         // Topic can unfortunately contain spaces so we need to parse the line using some heuristic methods.
         String[] splitted = line.split(" ", 2);
         final String serverTimestamp = splitted[0]; // not needed in this test
@@ -189,31 +139,23 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
 
         final String topic = topicAndPayload.substring(0, indexOfJsonStart).trim();
         final String jsonPayload = topicAndPayload.substring(indexOfJsonStart);
-        return new TopicAndPayload(topic, jsonPayload);
-    }
-
-    public static Mqtt.RawMessage parseMqttRawMessage(String line) {
-        return parseMqttRawMessage(parseTopicAndPayload(line));
-    }
-
-    public static Mqtt.RawMessage parseMqttRawMessage(TopicAndPayload tp) {
 
         Mqtt.RawMessage.Builder builder = Mqtt.RawMessage.newBuilder();
         Mqtt.RawMessage raw = builder
                 .setSchemaVersion(builder.getSchemaVersion())
-                .setTopic(tp.topic)
-                .setPayload(ByteString.copyFrom(tp.payload.getBytes()))
+                .setTopic(topic)
+                .setPayload(ByteString.copyFrom(jsonPayload.getBytes()))
                 .build();
         return raw;
     }
 
-    public static class BufferedTestLogic extends TestLogic {
+    public static class MultiMessageTestLogic extends TestLogic {
 
         protected final ArrayList<PulsarMessageData> input;
         protected final ArrayList<PulsarMessageData> expectedOutput;
 
-        public BufferedTestLogic(ArrayList<PulsarMessageData> in,
-                                 ArrayList<PulsarMessageData> out) {
+        public MultiMessageTestLogic(ArrayList<PulsarMessageData> in,
+                                     ArrayList<PulsarMessageData> out) {
             input = in;
             expectedOutput = out;
             logger.info("Sending {} messages and expecting {} back", input.size(), expectedOutput.size());
