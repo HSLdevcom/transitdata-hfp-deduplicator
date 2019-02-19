@@ -22,7 +22,7 @@ import static org.junit.Assert.assertTrue;
 public class ITDeduplicatorTest extends ITBaseTestSuite {
     @Test
     public void testDummyDuplicatesWithoutSchema() throws Exception {
-        final String testId = "-test-duplicates";
+        final String testId = "-test-duplicate-strings";
         PulsarApplication app = createPulsarApp("integration-test-dedup.conf", testId);
 
         //TODO add all required compontents to constructor
@@ -30,18 +30,21 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
 
         ArrayList<PulsarMessageData> input = new ArrayList<>();
         ArrayList<PulsarMessageData> output = new ArrayList<>();
-        for (int n = 0; n < 3; n++) {
+        for (int n = 0; n < 10; n++) {
             long ts = System.currentTimeMillis();
             String msg = "testme" + n;
-            String key = "jabadabaduu" + n;
-
-            PulsarMessageData data = new PulsarMessageData(msg.getBytes(), ts, key);
             //varying number of inputs, but expecting each message only to arrive once.
-            //And the one with the first key as first. TODO
             for (int times = 0; times <= n; times++) {
+                //Vary the key to make sure we only receive the first one sent.
+                String key = "jabadabaduu" + times;
+                PulsarMessageData data = new PulsarMessageData(msg.getBytes(), ts, key);
+
                 input.add(data);
+                if (times == 0) {
+                    logger.info("Adding msg {} with a key {} to output", msg, key);
+                    output.add(data);
+                }
             }
-            output.add(data);
         }
 
         BufferedTestLogic logic = new BufferedTestLogic(input, output);
@@ -57,6 +60,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
                                  ArrayList<PulsarMessageData> out) {
             input = in;
             expectedOutput = out;
+            logger.info("Sending {} messages and expecting {} back", input.size(), expectedOutput.size());
         }
 
         @Override
@@ -109,21 +113,6 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
             assertNotNull(expected);
             assertNotNull(received);
             assertEquals(expected, received);
-            //assertTrue(equals(expected, received));
         }
-        /*
-        public boolean equals(PulsarMessageData expected, PulsarMessageData received) {
-            if (!Arrays.equals(expected.payload, received.payload))
-                return false;
-            if (!received.key.equals(expected.key))
-                return false;
-            if (!received.eventTime.equals(expected.eventTime))
-                return false;
-            if (!received.properties.equals(expected.properties))
-                return false;
-            if (!received.schema.equals(expected.schema))
-                return false;
-            return true;
-        }*/
     }
 }
