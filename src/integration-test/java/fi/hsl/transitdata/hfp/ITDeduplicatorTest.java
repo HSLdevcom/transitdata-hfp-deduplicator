@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class ITDeduplicatorTest extends ITBaseTestSuite {
     @Test
@@ -61,9 +62,10 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
     @Test
     public void testDuplicatesWithRawMqttSchema() throws Exception {
         final HashMap<String, String> properties = new HashMap<>();
-        properties.put(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.MqttRawMessage.toString());
         properties.put(TransitdataProperties.KEY_SCHEMA_VERSION, "1");
-        final long ts = System.currentTimeMillis(); //Let's use the same timestamp for all
+        properties.put(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.MqttRawMessage.toString());
+        properties.put("foo", "bar");
+        final long ts = System.currentTimeMillis(); //Let's use the same timestamp for all to ease testing.
 
         LinkedList<String> lines = readLinesFromResources("hfp-5000.txt");
         assertEquals(5000, lines.size());
@@ -85,6 +87,8 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
                 counter.put(key, prevCount + 1);
             }
         }
+        assertEquals(5000, sourcePayloads.size());
+        assertEquals(4956, uniquePayloads.size());
 
         final String testId = "-test-raw-mqtt-duplicates";
         PulsarApplication app = createPulsarApp("integration-test-dedup.conf", testId);
@@ -93,12 +97,12 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
 
         final ArrayList<PulsarMessageData> input = sourcePayloads.stream().map(raw -> {
             byte[] data = raw.toByteArray();
-            return new PulsarMessageData(data, ts, "hfp"/*, properties*/);
+            return new PulsarMessageData(data, ts, "hfp", properties);
         }).collect(Collectors.toCollection(ArrayList::new));
 
         final ArrayList<PulsarMessageData> output = uniquePayloads.stream().map(raw -> {
             byte[] data = raw.toByteArray();
-            return new PulsarMessageData(data, ts, "hfp"/*, properties*/);
+            return new PulsarMessageData(data, ts, "hfp", properties);
         }).collect(Collectors.toCollection(ArrayList::new));
 
         logger.info("Sending {} hfp messages and expecting {} back", input.size(), output.size());
