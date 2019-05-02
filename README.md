@@ -22,6 +22,22 @@ This project depends on [transitdata-common](https://github.com/HSLdevcom/transi
 
 - Run [this script](build-image.sh) to build the Docker image
 
+
+## Tests:
+
+We're separating our unit & integration tests using [this pattern](https://www.petrikainulainen.net/programming/maven/integration-testing-with-maven/).
+
+Unit tests:
+
+- add test classes under ./src/test with suffix *Test.java
+- `mvn clean test -P unit-test`   
+
+Integration tests:
+
+- add test classes under ./src/integration-test with prefix IT*.java
+- `mvn clean verify -P integration-test`   
+
+
 ## Running
 
 Requirements:
