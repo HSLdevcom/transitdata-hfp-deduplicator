@@ -29,4 +29,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl
 #Everything that is not copied is discarded
 COPY --from=BUILD /usr/src/app/target/transitdata-hfp-deduplicator-jar-with-dependencies.jar /usr/app/transitdata-hfp-deduplicator.jar
 
-ENTRYPOINT ["java", "-Xms32m", "-Xmx32m", "-jar", "/usr/app/transitdata-hfp-deduplicator.jar"]
+ENTRYPOINT ["java", "-jar", "/usr/app/transitdata-hfp-deduplicator.jar"]
