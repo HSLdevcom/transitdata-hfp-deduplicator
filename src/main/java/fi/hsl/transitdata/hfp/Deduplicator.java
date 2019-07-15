@@ -42,20 +42,20 @@ public class Deduplicator implements IMessageHandler {
 
     public void handleMessage(Message received) throws Exception {
         try {
-//            byte[] data = parsePayload(received);
-//            HashCode hash = hashFunction.hashBytes(data);
-//            Long cacheHit = hashCache.getIfPresent(hash);
-            sendPulsarMessage(received);
-//            if (cacheHit == null) {
-//                // We haven't yet received this so save to cache and send the message.
-//                // Timestamp is for analytics & debugging purposes
-//                hashCache.put(hash, System.currentTimeMillis());
-//                analytics.ifPresent(a -> a.reportPrime());
-//            }
-//            else {
-//                long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
-//                analytics.ifPresent(a -> a.reportDuplicate(elapsedSinceHit));
-//            }
+            byte[] data = parsePayload(received);
+            HashCode hash = hashFunction.hashBytes(data);
+            Long cacheHit = hashCache.getIfPresent(hash);
+            if (cacheHit == null) {
+                // We haven't yet received this so save to cache and send the message.
+                // Timestamp is for analytics & debugging purposes
+                hashCache.put(hash, System.currentTimeMillis());
+                sendPulsarMessage(received);
+                analytics.ifPresent(a -> a.reportPrime());
+            }
+            else {
+                long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
+                analytics.ifPresent(a -> a.reportDuplicate(elapsedSinceHit));
+            }
             ack(received.getMessageId());
         }
         catch (Exception e) {
