@@ -22,8 +22,11 @@ RUN mvn -f /usr/src/app/pom.xml clean package
 #TODO: switch to Alpine when it becomes available
 FROM openjdk:8-jre-slim
 
+#Install curl for health check
+RUN apt-get update && apt-get install -y --no-install-recommends curl
+
 #This container can access the build artifacts inside the BUILD container.
 #Everything that is not copied is discarded
 COPY --from=BUILD /usr/src/app/target/transitdata-hfp-deduplicator-jar-with-dependencies.jar /usr/app/transitdata-hfp-deduplicator.jar
 
-ENTRYPOINT ["java", "-jar", "/usr/app/transitdata-hfp-deduplicator.jar"]
+ENTRYPOINT ["java", "-Xms256m", "-Xmx4096m", "-jar", "/usr/app/transitdata-hfp-deduplicator.jar"]
