@@ -76,7 +76,8 @@ public class Deduplicator implements IMessageHandler {
                 .filter(transitdataSchema ->
                         //We only support these two protobuf formats. Add others if needed:
                         transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.MqttRawMessage) ||
-                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData)
+                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData) ||
+                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.PassengerCount)
                 ).flatMap(
                     transitdataSchema -> {
                         try {
