@@ -36,7 +36,7 @@ public class Deduplicator implements IMessageHandler {
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
         hashCache = CacheBuilder.newBuilder()
                 .initialCapacity(35000)
-                .maximumSize(200000)
+                .maximumSize(250000)
                 .build();
     }
 
