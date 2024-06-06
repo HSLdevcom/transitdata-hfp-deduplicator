@@ -36,7 +36,7 @@ public class Deduplicator implements IMessageHandler {
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
         hashCache = CacheBuilder.newBuilder()
                 .initialCapacity(35000)
-                .maximumSize(30000)
+                .maximumSize(250000)
                 .build();
     }
 
@@ -76,7 +76,8 @@ public class Deduplicator implements IMessageHandler {
                 .filter(transitdataSchema ->
                         //We only support these two protobuf formats. Add others if needed:
                         transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.MqttRawMessage) ||
-                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData)
+                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData) ||
+                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.PassengerCount)
                 ).flatMap(
                     transitdataSchema -> {
                         try {
