@@ -38,29 +38,28 @@ public class Analytics {
         scheduler = Executors.newSingleThreadScheduledExecutor();
         log.info("Starting result-scheduler");
 
-        scheduler.scheduleAtFixedRate(this::calcStats,
-                secs,
-                secs,
-                TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this::calcStats, secs, secs, TimeUnit.SECONDS);
     }
 
     protected synchronized void calcStats() {
-        double ratioOfDuplicates = (double)(duplicates) / (double)(primes);
+        double ratioOfDuplicates = (double) (duplicates) / (double) (primes);
         String percentageOfDuplicates = String.format("%.2f", ratioOfDuplicates * 100);
         if (ratioOfDuplicates > 1.0) {
             // We've received more duplicates than actual messages, something's wrong?
             // Either the feeds have more duplicates we've assumed or our hashing algorithm is not good enough
-            log.error("Alert, we've received more duplicates than primary messages. primary: {}, duplicate: {}. percentage: {}%",
+            log.error(
+                    "Alert, we've received more duplicates than primary messages. primary: {}, duplicate: {}. percentage: {}%",
                     primes, duplicates, percentageOfDuplicates);
-        }
-        else if (ALERT_ON_THRESHOLD_ENABLED && ratioOfDuplicates < ALERT_THRESHOLD) {
+        } else if (ALERT_ON_THRESHOLD_ENABLED && ratioOfDuplicates < ALERT_THRESHOLD) {
             //We want to monitor that both feeds are up. In theory these two numbers should be nearly identical in the long term
-            log.error("Alert, we haven't received enough duplicates, another feed down?! primary: {}, duplicate: {}. percentage: {}%",
+            log.error(
+                    "Alert, we haven't received enough duplicates, another feed down?! primary: {}, duplicate: {}. percentage: {}%",
                     primes, duplicates, percentageOfDuplicates);
         }
 
-        double averageDelay = (double)sum / (double) duplicates;
-        log.info("Percentage of getting both events is {} % with average delay of {} ms", percentageOfDuplicates, averageDelay);
+        double averageDelay = (double) sum / (double) duplicates;
+        log.info("Percentage of getting both events is {} % with average delay of {} ms", percentageOfDuplicates,
+                averageDelay);
         duplicates = 0;
         primes = 0;
         sum = 0;
