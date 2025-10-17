@@ -5,6 +5,11 @@ on: [push, pull_request]
 jobs:
   build:
     uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-java.yml@main
+    with:
+      uploadJarArtifact: true
+      jarArtifactName: "transitdata-hfp-deduplicator.jar"
+      jarArtifactPath: "target/transitdata-hfp-deduplicator.jar"
+
   build-release-docker-image:
     needs: build
     runs-on: ubuntu-latest
