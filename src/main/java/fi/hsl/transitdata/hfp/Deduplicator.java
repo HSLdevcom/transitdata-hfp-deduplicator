@@ -34,10 +34,7 @@ public class Deduplicator implements IMessageHandler {
         this.analytics = Optional.ofNullable(analytics);
 
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
-        hashCache = CacheBuilder.newBuilder()
-                .initialCapacity(35000)
-                .maximumSize(250000)
-                .build();
+        hashCache = CacheBuilder.newBuilder().initialCapacity(35000).maximumSize(250000).build();
     }
 
     public void handleMessage(Message received) throws Exception {
@@ -51,14 +48,12 @@ public class Deduplicator implements IMessageHandler {
                 hashCache.put(hash, System.currentTimeMillis());
                 sendPulsarMessage(received);
                 analytics.ifPresent(a -> a.reportPrime());
-            }
-            else {
+            } else {
                 long elapsedSinceHit = System.currentTimeMillis() - cacheHit;
                 analytics.ifPresent(a -> a.reportDuplicate(elapsedSinceHit));
             }
             ack(received.getMessageId());
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             analytics.ifPresent(a -> a.calcStats());
             log.error("Exception while handling message, aborting", e);
             throw e;
@@ -72,59 +67,49 @@ public class Deduplicator implements IMessageHandler {
         final byte[] sourceData = received.getData();
         Optional<TransitdataSchema> maybeSchema = TransitdataSchema.parseFromPulsarMessage(received);
 
-        Optional<byte[]> mappedData = maybeSchema
-                .filter(transitdataSchema ->
-                        //We only support these two protobuf formats. Add others if needed:
-                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.MqttRawMessage) ||
-                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData) ||
-                        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.PassengerCount)
-                ).flatMap(
-                    transitdataSchema -> {
-                        try {
-                            return Optional.of(parsePayload(transitdataSchema.schema, sourceData));
-                        }
-                        catch (Exception e) {
-                            log.error("Could not parse expected protobuf schema: {}", transitdataSchema.schema.toString());
-                            return Optional.empty();
-                        }
+        Optional<byte[]> mappedData = maybeSchema.filter(transitdataSchema ->
+        //We only support these two protobuf formats. Add others if needed:
+        transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.MqttRawMessage)
+                || transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.HfpData)
+                || transitdataSchema.schema.equals(TransitdataProperties.ProtobufSchema.PassengerCount))
+                .flatMap(transitdataSchema -> {
+                    try {
+                        return Optional.of(parsePayload(transitdataSchema.schema, sourceData));
+                    } catch (Exception e) {
+                        log.error("Could not parse expected protobuf schema: {}", transitdataSchema.schema.toString());
+                        return Optional.empty();
                     }
-                );
+                });
 
         return mappedData.orElse(sourceData);
     }
 
-    private byte[] parsePayload(TransitdataProperties.ProtobufSchema protobufSchema, byte[] sourceData) throws Exception {
+    private byte[] parsePayload(TransitdataProperties.ProtobufSchema protobufSchema, byte[] sourceData)
+            throws Exception {
         if (protobufSchema == TransitdataProperties.ProtobufSchema.MqttRawMessage) {
             return Mqtt.RawMessage.parseFrom(sourceData).toByteArray();
-        }
-        else if (protobufSchema == TransitdataProperties.ProtobufSchema.HfpData) {
+        } else if (protobufSchema == TransitdataProperties.ProtobufSchema.HfpData) {
             return Hfp.Data.parseFrom(sourceData).toByteArray();
-        }
-        else {
+        } else {
             throw new IllegalArgumentException("Cannot parse unknown protobuf format: " + protobufSchema.toString());
         }
     }
 
     private void ack(MessageId received) {
-        consumer.acknowledgeAsync(received)
-                .exceptionally(throwable -> {
-                    log.error("Failed to ack Pulsar message", throwable);
-                    return null;
-                })
-                .thenRun(() -> {});
+        consumer.acknowledgeAsync(received).exceptionally(throwable -> {
+            log.error("Failed to ack Pulsar message", throwable);
+            return null;
+        }).thenRun(() -> {
+        });
     }
 
     private void sendPulsarMessage(Message toSend) {
-        producer.newMessage()
-                .key(toSend.getKey())
-                .eventTime(toSend.getEventTime())
-                .properties(toSend.getProperties())
-                .value(toSend.getData())
-                .sendAsync()
-                .exceptionally(t -> {
+        producer.newMessage().key(toSend.getKey()).eventTime(toSend.getEventTime()).properties(toSend.getProperties())
+                .value(toSend.getData()).sendAsync().exceptionally(t -> {
                     log.error("Failed to send Pulsar message", t);
                     return null;
-                }) .thenRun(() -> {});
+                }).thenRun(() -> {
+                });
 
     }
 }
