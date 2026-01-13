@@ -11,13 +11,14 @@ import fi.hsl.common.pulsar.IMessageHandler;
 import fi.hsl.common.pulsar.PulsarApplicationContext;
 import fi.hsl.common.transitdata.TransitdataProperties;
 import fi.hsl.common.transitdata.TransitdataSchema;
+import java.time.Duration;
+import java.util.Optional;
 import org.apache.pulsar.client.api.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.time.Duration;
-import java.util.Optional;
 
 public class Deduplicator implements IMessageHandler {
+
     private static final Logger log = LoggerFactory.getLogger(Deduplicator.class);
 
     private Consumer<byte[]> consumer;
@@ -34,7 +35,9 @@ public class Deduplicator implements IMessageHandler {
         this.analytics = Optional.ofNullable(analytics);
 
         Duration ttl = context.getConfig().getDuration("application.cacheTTL");
-        hashCache = CacheBuilder.newBuilder().initialCapacity(35000).maximumSize(250000).build();
+        long cacheSize = context.getConfig().getLong("application.cacheSize");
+        hashCache = CacheBuilder.newBuilder().initialCapacity(Math.min((int) cacheSize, 100000)).maximumSize(cacheSize)
+                .expireAfterWrite(ttl).build();
     }
 
     public void handleMessage(Message received) throws Exception {
@@ -110,6 +113,5 @@ public class Deduplicator implements IMessageHandler {
                     return null;
                 }).thenRun(() -> {
                 });
-
     }
 }
