@@ -1,3 +1,6 @@
+# syntax=docker/dockerfile:1
+# check=error=true
+
 FROM eclipse-temurin:11-alpine
 #Install curl for health check
 RUN apk add --no-cache curl
