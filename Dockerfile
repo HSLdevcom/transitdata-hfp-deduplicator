@@ -2,8 +2,6 @@
 # check=error=true
 
 FROM eclipse-temurin:11-alpine
-#Install curl for health check
-RUN apk add --no-cache curl
 
 COPY target/transitdata-hfp-deduplicator.jar /usr/app/transitdata-hfp-deduplicator.jar
 
