@@ -1,5 +1,3 @@
-[![Build Status](https://travis-ci.org/HSLdevcom/transitdata-hfp-deduplicator.svg?branch=master)](https://travis-ci.org/HSLdevcom/transitdata-hfp-deduplicator)
-
 # Transitdata-hfp-deduplicator
 
 ## Description
