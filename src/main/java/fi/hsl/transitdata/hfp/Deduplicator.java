@@ -21,23 +21,21 @@ public class Deduplicator implements IMessageHandler {
 
     private static final Logger log = LoggerFactory.getLogger(Deduplicator.class);
 
-    private Consumer<byte[]> consumer;
-    private Producer<byte[]> producer;
+    private static final int DEFAULT_INITIAL_CACHE_CAPACITY = 100000;
+    private static final int HASHING_SEED = 42; //Let's use a static seed in case we want to store hashes in a more persistent storage at some point (f.ex Redis)
+
+    private final Consumer<byte[]> consumer;
+    private final Producer<byte[]> producer;
 
     private final Cache<HashCode, Long> hashCache;
-    final int SEED = 42; //Let's use a static seed in case we want to store hashes in a more persistent storage at some point (f.ex Redis)
-    private final HashFunction hashFunction = Hashing.murmur3_128(SEED);
+    private final HashFunction hashFunction = Hashing.murmur3_128(HASHING_SEED);
     private final Optional<Analytics> analytics;
 
     public Deduplicator(PulsarApplicationContext context, Analytics analytics) {
         consumer = context.getConsumer();
         producer = context.getProducer();
         this.analytics = Optional.ofNullable(analytics);
-
-        Duration ttl = context.getConfig().getDuration("application.cacheTTL");
-        long cacheSize = context.getConfig().getLong("application.cacheSize");
-        hashCache = CacheBuilder.newBuilder().initialCapacity(Math.min((int) cacheSize, 100000)).maximumSize(cacheSize)
-                .expireAfterWrite(ttl).build();
+        hashCache = initCache(context);
     }
 
     public void handleMessage(Message received) throws Exception {
@@ -96,6 +94,13 @@ public class Deduplicator implements IMessageHandler {
         } else {
             throw new IllegalArgumentException("Cannot parse unknown protobuf format: " + protobufSchema.toString());
         }
+    }
+
+    private static Cache<HashCode, Long> initCache(PulsarApplicationContext context) {
+        Duration ttl = context.getConfig().getDuration("application.cacheTTL");
+        long cacheSize = context.getConfig().getLong("application.cacheSize");
+        return CacheBuilder.newBuilder().initialCapacity(Math.min((int) cacheSize, DEFAULT_INITIAL_CACHE_CAPACITY))
+                .maximumSize(cacheSize).expireAfterWrite(ttl).build();
     }
 
     private void ack(MessageId received) {
