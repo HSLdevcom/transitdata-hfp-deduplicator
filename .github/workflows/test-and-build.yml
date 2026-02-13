@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build:
-    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-java.yml@main
+    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-java.yml@1.0.4
     secrets:
       DOCKER_USERNAME: ${{ secrets.TRANSITDATA_DOCKERHUB_USER }}
       DOCKER_PASSWORD: ${{ secrets.TRANSITDATA_DOCKERHUB_TOKEN }}
