@@ -4,14 +4,17 @@ on: [push, pull_request]
 
 jobs:
   build:
-    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-java.yml@main
+    uses: HSLdevcom/transitdata-shared-workflows/.github/workflows/ci-cd-java.yml@feature/59649-measure-test-coverage
     secrets:
       DOCKER_USERNAME: ${{ secrets.TRANSITDATA_DOCKERHUB_USER }}
       DOCKER_PASSWORD: ${{ secrets.TRANSITDATA_DOCKERHUB_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     with:
       uploadJarArtifact: true
       jarArtifactName: "transitdata-hfp-deduplicator.jar"
       jarArtifactPath: "target/transitdata-hfp-deduplicator.jar"
+      workingDirectory: .
+      runTestsInsideDocker: true
 
   build-release-docker-image:
     needs: build
