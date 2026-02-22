@@ -1,7 +1,52 @@
-FROM eclipse-temurin:11-alpine
-#Install curl for health check
-RUN apk add --no-cache curl
+# syntax=docker/dockerfile:1
+# check=error=true
 
-COPY target/transitdata-hfp-deduplicator.jar /usr/app/transitdata-hfp-deduplicator.jar
+# ============================
+# Base stage
+# ============================
+FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jdk AS base
+WORKDIR /usr/app
+
+ARG GITHUB_ACTOR=github-actions
+
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+
+COPY .mvn/settings.xml /root/.m2/settings.xml
+
+# ============================
+# Test stage
+# ============================
+FROM base AS test
+
+RUN --mount=type=secret,id=github_token \
+    export GITHUB_TOKEN="$(cat /run/secrets/github_token)" && \
+    export GITHUB_ACTOR="$GITHUB_ACTOR" && \
+    ./mvnw -B -q dependency:go-offline
+
+COPY src src
+
+RUN --mount=type=secret,id=github_token \
+    export GITHUB_TOKEN="$(cat /run/secrets/github_token)" && \
+    export GITHUB_ACTOR="$GITHUB_ACTOR" && \
+    ./mvnw -B test
+
+# ============================
+# Build stage
+# ============================
+FROM base AS build
+
+COPY src src
+
+RUN --mount=type=secret,id=github_token \
+    export GITHUB_TOKEN="$(cat /run/secrets/github_token)" && \
+    export GITHUB_ACTOR="$GITHUB_ACTOR" && \
+    ./mvnw -B package -DskipTests
+
+# ============================
+# Runtime stage
+# ============================
+FROM hsldevcom/infodevops-docker-base-images:1.0.2-25-java-jre
+COPY --from=build /usr/app/target/transitdata-hfp-deduplicator.jar /usr/app/transitdata-hfp-deduplicator.jar
 
 ENTRYPOINT ["java", "-XX:InitialRAMPercentage=10.0", "-XX:MaxRAMPercentage=95.0", "-jar", "/usr/app/transitdata-hfp-deduplicator.jar"]
