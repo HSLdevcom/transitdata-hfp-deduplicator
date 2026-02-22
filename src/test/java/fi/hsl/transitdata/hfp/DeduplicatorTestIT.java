@@ -7,8 +7,6 @@ import fi.hsl.common.pulsar.PulsarApplication;
 import fi.hsl.common.pulsar.PulsarMessageData;
 import fi.hsl.common.pulsar.TestPipeline;
 import fi.hsl.common.transitdata.TransitdataProperties;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -18,10 +16,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
-public class ITDeduplicatorTest extends ITBaseTestSuite {
+public class DeduplicatorTestIT extends ITBaseTestSuite {
     @Test
     public void testDummyDuplicatesWithoutSchema() throws Exception {
         final String testId = "-test-duplicate-strings";
@@ -73,7 +69,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         assertEquals(5000, lines.size());
 
         final List<Mqtt.RawMessage> sourcePayloads = lines.stream()
-                .map(ITDeduplicatorTest::parseMqttRawMessage)
+                .map(DeduplicatorTestIT::parseMqttRawMessage)
                 .collect(Collectors.toList());
         final List<Mqtt.RawMessage> uniquePayloads = new LinkedList<>();
 
