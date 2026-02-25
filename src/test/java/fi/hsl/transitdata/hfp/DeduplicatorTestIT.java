@@ -35,7 +35,7 @@ public class DeduplicatorTestIT extends ITBaseTestSuite {
                 //Vary the key to make sure we only receive the first one sent.
                 String key = "jabadabaduu" + times;
                 //Also timestamp should not matter, only the payload
-                ts = +1;
+                ts += 1;
 
                 PulsarMessageData data = new PulsarMessageData(msg.getBytes(), ts, key);
 
