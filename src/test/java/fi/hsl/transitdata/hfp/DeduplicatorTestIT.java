@@ -7,8 +7,6 @@ import fi.hsl.common.pulsar.PulsarApplication;
 import fi.hsl.common.pulsar.PulsarMessageData;
 import fi.hsl.common.pulsar.TestPipeline;
 import fi.hsl.common.transitdata.TransitdataProperties;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -18,10 +16,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
-public class ITDeduplicatorTest extends ITBaseTestSuite {
+public class DeduplicatorTestIT extends ITBaseTestSuite {
     @Test
     public void testDummyDuplicatesWithoutSchema() throws Exception {
         final String testId = "-test-duplicate-strings";
@@ -39,7 +35,7 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
                 //Vary the key to make sure we only receive the first one sent.
                 String key = "jabadabaduu" + times;
                 //Also timestamp should not matter, only the payload
-                ts =+ 1;
+                ts += 1;
 
                 PulsarMessageData data = new PulsarMessageData(msg.getBytes(), ts, key);
 
@@ -65,20 +61,20 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
     public void testDuplicatesWithRawMqttSchema() throws Exception {
         final HashMap<String, String> properties = new HashMap<>();
         properties.put(TransitdataProperties.KEY_SCHEMA_VERSION, "1");
-        properties.put(TransitdataProperties.KEY_PROTOBUF_SCHEMA, TransitdataProperties.ProtobufSchema.MqttRawMessage.toString());
+        properties.put(TransitdataProperties.KEY_PROTOBUF_SCHEMA,
+                TransitdataProperties.ProtobufSchema.MqttRawMessage.toString());
         properties.put("foo", "bar");
         final long ts = System.currentTimeMillis(); //Let's use the same timestamp for all to ease testing.
 
         LinkedList<String> lines = readLinesFromResources("hfp-5000.txt");
         assertEquals(5000, lines.size());
 
-        final List<Mqtt.RawMessage> sourcePayloads = lines.stream()
-                .map(ITDeduplicatorTest::parseMqttRawMessage)
+        final List<Mqtt.RawMessage> sourcePayloads = lines.stream().map(DeduplicatorTestIT::parseMqttRawMessage)
                 .collect(Collectors.toList());
         final List<Mqtt.RawMessage> uniquePayloads = new LinkedList<>();
 
         HashMap<String, Integer> counter = new HashMap<>();
-        for (Mqtt.RawMessage raw: sourcePayloads) {
+        for (Mqtt.RawMessage raw : sourcePayloads) {
             String key = raw.getTopic() + " " + new String(raw.getPayload().toByteArray());
             Integer prevCount = counter.get(key);
             if (prevCount == null) {
@@ -121,14 +117,12 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
             reader = new BufferedReader(new InputStreamReader(url.openStream()));
 
             String line;
-            while ((line = reader.readLine()) != null)
-            {
+            while ((line = reader.readLine()) != null) {
                 lines.add(line);
             }
             // close our reader
             reader.close();
-        }
-        finally {
+        } finally {
             if (reader != null)
                 reader.close();
         }
@@ -147,11 +141,8 @@ public class ITDeduplicatorTest extends ITBaseTestSuite {
         final String jsonPayload = topicAndPayload.substring(indexOfJsonStart);
 
         Mqtt.RawMessage.Builder builder = Mqtt.RawMessage.newBuilder();
-        Mqtt.RawMessage raw = builder
-                .setSchemaVersion(builder.getSchemaVersion())
-                .setTopic(topic)
-                .setPayload(ByteString.copyFrom(jsonPayload.getBytes()))
-                .build();
+        Mqtt.RawMessage raw = builder.setSchemaVersion(builder.getSchemaVersion()).setTopic(topic)
+                .setPayload(ByteString.copyFrom(jsonPayload.getBytes())).build();
         return raw;
     }
 
