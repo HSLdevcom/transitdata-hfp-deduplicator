@@ -1,5 +1,9 @@
 name: Test and create Docker image
 
+permissions:
+  contents: read
+  packages: read
+
 on: [push, pull_request]
 
 jobs:
